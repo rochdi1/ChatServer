@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Modern Chat</title>
+    <!-- Socket.IO laden -->
+    <script src="https://socket.io"></script>
+    <script src="/socket.io/socket.io.js"></script>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        body { background-color: #f0f2f5; display: flex; justify-content: center; align-items: center; height: 100vh; }
+        .chat-container { width: 100%; max-width: 450px; height: 80vh; background: white; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); display: flex; flex-direction: column; overflow: hidden; }
+        .chat-header { background: #007bff; color: white; padding: 15px; text-align: center; font-size: 1.2rem; font-weight: bold; }
+        .chat-messages { flex: 1; padding: 15px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
+        .message { max-width: 75%; padding: 10px 14px; border-radius: 18px; font-size: 0.95rem; line-height: 1.4; word-wrap: break-word; }
+        .message.received { background: #e9ecef; color: #333; align-self: flex-start; border-bottom-left-radius: 4px; }
+        .message.sent { background: #007bff; color: white; align-self: flex-end; border-bottom-right-radius: 4px; }
+        .chat-input-area { padding: 15px; background: #fff; border-top: 1px solid #ddd; display: flex; gap: 10px; }
+        input { flex: 1; padding: 12px; border: 1px solid #ccc; border-radius: 25px; outline: none; font-size: 1rem; transition: border 0.2s; }
+        input:focus { border-color: #007bff; }
+        button { background: #007bff; color: white; border: none; padding: 0 20px; border-radius: 25px; font-size: 1rem; cursor: pointer; font-weight: bold; transition: background 0.2s; }
+        button:hover { background: #0056b3; }
+    </style>
+</head>
+<body>
+
+<div class="chat-container">
+    <div class="chat-header">Live Chat Raum</div>
+    <div class="chat-messages" id="chatMessages"></div>
+    <div class="chat-input-area">
+        <input type="text" id="msgInput" placeholder="Nachricht schreiben..." autocomplete="off">
+        <button id="sendBtn">Senden</button>
+    </div>
+</div>
+
+<script>
+    // Verbindung zum Docker Chat-Server herstellen
+    const socket = io();
+    
+    const chatMessages = document.getElementById('chatMessages');
+    const msgInput = document.getElementById('msgInput');
+    const sendBtn = document.getElementById('sendBtn');
+
+    // 1. EMPFANGEN: Wenn der Server eine Nachricht sendet
+    socket.on('chat message', (data) => {
+        const msgDiv = document.createElement('div');
+        msgDiv.classList.add('message');
+        
+        // Prüfen, ob die Nachricht von mir oder jemand anderem kommt
+        if (data.senderId === socket.id) {
+            msgDiv.classList.add('sent');
+        } else {
+            msgDiv.classList.add('received');
+        }
+        
+        msgDiv.textContent = data.text;
+        chatMessages.appendChild(msgDiv);
+        
+        // Automatisch nach unten scrollen bei neuen Nachrichten
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+    });
+
+    // 2. SENDEN: Funktion zum Abschicken
+    function sendMsg() {
+        const text = msgInput.value.trim();
+        if (text !== "") {
+            // Wir senden den Text UND unsere ID, damit das Design weiß, wer es abgeschickt hat
+            socket.emit('chat message', {
+                text: text,
+                senderId: socket.id
+            });
+            msgInput.value = "";
+            msgInput.focus();
+        }
+    }
+
+    // Event-Listener für Button-Klick und Enter-Taste
+    sendBtn.addEventListener('click', sendMsg);
+    msgInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') sendMsg();
+    });
+</script>
+
+</body>
+</html>
